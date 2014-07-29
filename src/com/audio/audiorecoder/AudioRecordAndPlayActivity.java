@@ -9,6 +9,7 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
+import android.media.audiofx.AcousticEchoCanceler;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -25,6 +26,7 @@ public class AudioRecordAndPlayActivity extends Activity {
 		
 	private AudioRecord mAudioRecord;
 	private AudioTrack mAudioTrack;
+	private AcousticEchoCanceler mAEC;
 	private ArrayBlockingQueue<byte[]> mAudioDataQueue;
 	private byte[] mAudioInBuffer;
 	private int mAudioInBufferSize;
@@ -69,12 +71,21 @@ public class AudioRecordAndPlayActivity extends Activity {
 	protected void onStop() {
 		super.onStop();
 		Log.i(TAG, "onStop");
-		mAudioRecord.stop();
-		mAudioRecord.release();
-		mAudioRecord = null;
-		mAudioTrack.stop();
-		mAudioTrack.release();
-		mAudioTrack = null;
+		if (mAudioRecord != null) {
+			mAudioRecord.stop();
+			mAudioRecord.release();
+			mAudioRecord = null;
+		}
+		if (mAudioTrack != null) {
+			mAudioTrack.stop();
+			mAudioTrack.release();
+			mAudioTrack = null;
+		}
+		if (mAEC != null) {
+			mAEC.setEnabled(false);
+			mAEC.release();
+			mAEC = null;
+		}
 	}
 	
 	@Override
@@ -127,16 +138,36 @@ public class AudioRecordAndPlayActivity extends Activity {
 		mAudioInBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE,
 				AudioFormat.CHANNEL_IN_STEREO, AudioFormat.ENCODING_PCM_16BIT);
 		mAudioInBuffer = new byte[mAudioInBufferSize];
-		mAudioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,
-				SAMPLE_RATE, AudioFormat.CHANNEL_IN_STEREO,
-				AudioFormat.ENCODING_PCM_16BIT, mAudioInBufferSize);
+		if (android.os.Build.VERSION.SDK_INT >= 16) {
+			mAudioRecord = new AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+					SAMPLE_RATE, AudioFormat.CHANNEL_IN_STEREO,
+					AudioFormat.ENCODING_PCM_16BIT, mAudioInBufferSize);
+			if (AcousticEchoCanceler.isAvailable()) {
+				mAEC = AcousticEchoCanceler.create(mAudioRecord.getAudioSessionId());
+				try {
+					mAEC.setEnabled(true);
+		        } catch (IllegalStateException e) {
+		        	e.printStackTrace();
+		        }
+			}
+		} else {
+			mAudioRecord = new AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+					SAMPLE_RATE, AudioFormat.CHANNEL_IN_STEREO,
+					AudioFormat.ENCODING_PCM_16BIT, mAudioInBufferSize);
+		}
 
 		mAudioOutBufferSize = AudioTrack.getMinBufferSize(44100,
 				AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT);
 		mAudioOutBuffer = new byte[mAudioOutBufferSize];
-		mAudioTrack = new AudioTrack(AudioManager.STREAM_VOICE_CALL, 44100,
-				AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT,
-				mAudioOutBufferSize, AudioTrack.MODE_STATIC);
+		if (android.os.Build.VERSION.SDK_INT >= 16) {
+			mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, 44100,
+					AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT,
+					mAudioOutBufferSize, AudioTrack.MODE_STREAM, mAudioRecord.getAudioSessionId());
+		} else {
+			mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, 44100,
+					AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT,
+					mAudioOutBufferSize, AudioTrack.MODE_STREAM);
+		}
 		
 		mAudioDataQueue = new ArrayBlockingQueue<byte[]>(QUEUE_SIZE);
 	}
