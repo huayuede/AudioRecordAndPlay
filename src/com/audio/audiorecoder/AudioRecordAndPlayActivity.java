@@ -171,12 +171,12 @@ public class AudioRecordAndPlayActivity extends Activity {
 				AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT);
 		mAudioOutBuffer = new byte[mAudioOutBufferSize];
 		if (android.os.Build.VERSION.SDK_INT >= 16) {
-			mAudioTrack = new AudioTrack(AudioManager.STREAM_VOICE_CALL, 44100,
+			mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, SAMPLE_RATE,
 					AudioFormat.CHANNEL_OUT_STEREO,
 					AudioFormat.ENCODING_PCM_16BIT, mAudioOutBufferSize,
 					AudioTrack.MODE_STREAM, mAudioRecord.getAudioSessionId());
 		} else {
-			mAudioTrack = new AudioTrack(AudioManager.STREAM_VOICE_CALL, 44100,
+			mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, SAMPLE_RATE,
 					AudioFormat.CHANNEL_OUT_STEREO,
 					AudioFormat.ENCODING_PCM_16BIT, mAudioOutBufferSize,
 					AudioTrack.MODE_STREAM);
